@@ -1,7 +1,8 @@
 # STATE.md
 
 **Last updated:** 2026-08-12
-**Current phase:** Phase 1 — core pipeline. Ingestion (deterministic) done; extraction is next.
+**Current phase:** Phase 1 — core pipeline. Ingestion + hedging detection (both deterministic)
+done; extraction (the LLM-calling stage) is next.
 
 This file always reflects *current reality only*. Don't leave stale entries — if something
 described here stops being true, overwrite it, don't append. History belongs in DECISIONS.md,
@@ -33,20 +34,43 @@ not here.
   name/title split ambiguity on inconsistently-formatted source text, no OCR, English-only
   Q&A-phrasing detection, etc.) — read that before touching `segmentation.py` again.
 
+**`src/analysis/` — deterministic hedging/tone detection. No LLM calls (new module, see below).**
+
+- `hedging_detector.py` — `classify_sentence(text)` labels a sentence `hedged` / `confident` /
+  `unmarked` by matching it against `skills/earnings-call-analysis/reference/hedging-lexicon.md`
+  (parsed at runtime from that file's `## bucket` / `### category` / `- phrase` structure — the
+  lexicon is data, not hardcoded in Python; edit the `.md` file to change phrases). Hedge matches
+  take precedence over confident matches when a sentence has both. `analyze_turn(turn_text)`
+  sentence-splits a whole turn and classifies each sentence. `parse_lexicon()` is exposed
+  separately and raises `ValueError` if either bucket parses to zero phrases (fails loud on a
+  malformed lexicon file rather than silently matching nothing).
+- The lexicon itself is sourced, not guessed — Hyland (1998)'s hedging-linguistics taxonomy plus
+  Loughran & McDonald (2011)'s finance-NLP Strong/Weak Modal and Uncertainty word classes, with
+  full citations in the lexicon file's own "Where this comes from" section. See DECISIONS.md for
+  why those two sources and why hedging detection got its own `src/analysis/` module rather than
+  living in `ingestion/` or `extraction/`.
+- 22 tests in `tests/test_hedging_detector.py` (37 total across the whole suite, all passing):
+  hand-written sentences with known expected labels, the hedge-precedence rule, case-
+  insensitivity, a word-boundary false-positive regression test ("may" must not match inside
+  "Mayfield"), lexicon-parser error handling, and turn-level multi-sentence analysis.
+
 Everything else (extraction, eval, revision, report, the skill itself) is still just scaffolding
-— empty packages / stub files, no logic.
+— empty packages / stub files, no logic. `claim-categories.md` is still a stub; `SKILL.md` is
+still a stub too (it will need to reference both `hedging-lexicon.md` and `claim-categories.md`
+once written).
 
 ## What's in progress
 
-Nothing actively — ingestion is complete for what Phase 1 needs from it.
+Nothing actively — ingestion and hedging detection are both complete for what Phase 1 needs.
 
 ## Immediate next step
 
 `skills/earnings-call-analysis/SKILL.md` — the claim-extraction skill (first LLM-calling stage).
 Per ROADMAP.md Phase 1: structured JSON output, mandatory source citation (speaker + turn number,
 which `segment_transcript`'s `Turn.turn_number` now provides directly) on every extracted claim.
-Reference files `hedging-lexicon.md` and `claim-categories.md` need real content too (currently
-stubs).
+`claim-categories.md` needs real content too (currently a stub). The extraction stage should call
+`src/analysis/hedging_detector.py` to tag each claim's hedging status rather than asking the LLM
+to judge that itself — deterministic-before-LLM per CLAUDE.md.
 
 ## Blocked on
 

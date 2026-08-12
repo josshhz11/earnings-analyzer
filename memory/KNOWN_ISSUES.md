@@ -83,3 +83,19 @@ correctly fail closed into `low_confidence=True` with the whole document labeled
 `Prepared Remarks` — it won't guess — but it also won't segment the Q&A section at all.
 **Workaround / status:** Acceptable for v1 (English-language earnings calls only, consistent with
 target scope). No action needed unless non-English transcripts become a stated requirement.
+
+## [OPEN] Hedging detector's sentence splitter over-splits on mid-sentence abbreviations
+**Discovered:** 2026-08-12, implementing `src/analysis/hedging_detector.py`
+**Severity:** low
+**Description:** `split_sentences()` splits on sentence-ending punctuation followed by
+whitespace and a capital letter (`(?<=[.!?])\s+(?=[A-Z])`). An abbreviation like `"Truist
+Securities, Inc. Thank you for the question."` will incorrectly split after "Inc." even though
+it's not actually a sentence boundary, because "Inc." is followed by a space and a capitalized
+word. Each resulting fragment is still classified independently and correctly on its own merits
+— the practical effect is a slightly-too-short "sentence" being classified rather than a
+misclassification.
+**Workaround / status:** Not fixed for v1 — a real abbreviation-aware sentence splitter (spaCy,
+nltk punkt, etc.) is more machinery than this deterministic-regex module is meant to carry, and
+the downstream impact (classification of an artificially-short fragment) is minor. Revisit if
+hedging-detection accuracy on real transcripts turns out to be materially affected once it's
+wired into the extraction stage.

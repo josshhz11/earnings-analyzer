@@ -117,3 +117,42 @@ runs on every pipeline invocation, not just at dev time. It also ships built-in 
 now avoids a library swap when that phase starts, versus reaching for pdfplumber later
 specifically for its table-extraction strength. Revisit only if pymupdf's table detection proves
 inadequate once Phase 3 actually starts.
+
+---
+
+## 2026-08-12 — Hedging lexicon sourced from Hyland (1998) and Loughran-McDonald (2011), not invented ad hoc
+
+**Decision:** `skills/earnings-call-analysis/reference/hedging-lexicon.md`'s phrase categories
+are drawn from two established sources rather than a hand-guessed list: Hyland's linguistics
+taxonomy of hedging devices (modal verbs, epistemic verbs, probability adjectives/adverbs,
+approximators) for the "Hedging phrases" categories, and Loughran & McDonald's finance-NLP
+Master Dictionary word classes — specifically their Strong Modal (will/must/shall) and Weak
+Modal (could/may/might/should) categories, plus their Uncertainty word list — for the modal-verb
+split between the hedging and confident buckets. Earnings-call-specific boilerplate (forward-
+looking-statement caveats) was added separately, drawn from standard SEC disclosure convention,
+not from either academic source.
+
+**Reasoning:** Both sources are established, citable references for exactly this kind of
+categorization (Loughran-McDonald in particular is the standard word list used in finance/
+10-K/earnings-call textual analysis research), so the lexicon has a defensible basis instead of
+being an arbitrary list that would need re-justifying later. Full citations and per-category
+sourcing are in the lexicon file itself ("Where this comes from" section) so the reasoning stays
+next to the data it explains, not just here.
+
+---
+
+## 2026-08-12 — Hedging detection lives in new `src/analysis/`, not `src/ingestion/` or `src/extraction/`
+
+**Decision:** `hedging_detector.py` (deterministic phrase-lexicon matching, no LLM calls) got a
+new top-level module, `src/analysis/`, rather than being added to `src/ingestion/` or
+`src/extraction/`.
+
+**Reasoning:** Ingestion's job is strictly structural — raw PDF into speaker-tagged turns, with
+zero interpretation of what's actually said. Extraction is specifically the LLM-calling
+claim-pulling stage. Hedging detection is deterministic *content* analysis: it doesn't parse
+document structure (not ingestion) and it isn't a model call (not extraction) — but both the
+extraction stage (to tag each claim's hedging status) and the report stage (to surface it) will
+need to call it. Giving it its own module keeps CLAUDE.md's stage-boundary-cleanliness principle
+intact and gives future deterministic text-analysis utilities (e.g. non-GAAP/GAAP phrase
+detection, also planned per OVERALL_PROJECT.md's claim categories) an obvious home instead of
+overloading ingestion or extraction with logic that doesn't belong to either.
