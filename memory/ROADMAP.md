@@ -7,7 +7,7 @@ in the file (marked done), don't delete history.
 
 - [x] Deterministic ingestion: PDF → speaker-tagged transcript segments (Prepared Remarks vs
       Q&A, speaker name/title per turn).
-- [ ] `skills/earnings-call-analysis/SKILL.md` — claim extraction skill, structured JSON output,
+- [x] `skills/earnings-call-analysis/SKILL.md` — claim extraction skill, structured JSON output,
       mandatory source citation (speaker + turn) on every claim.
 - [ ] Eval harness v1: faithfulness check (programmatic, quote-matching), coverage check.
 - [ ] Consistency check with adaptive N=2→5 sampling on judgment-call categories, median + range
