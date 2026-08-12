@@ -126,3 +126,24 @@ risk noted in the Anthropic SDK docs). The `client.messages.parse()` call is now
 the real fix is chunking turns across multiple extraction calls, not raising `max_tokens`
 further — not yet built, since Phase 1 transcripts have been small enough that one call over the
 whole transcript stays well under 16K output tokens in testing so far.
+
+## [RESOLVED] Consistency-check judgment calls returned empty responses on claude-opus-5
+**Discovered:** 2026-08-12, live-testing `src/eval/consistency_check.py`
+**Severity:** medium (silently-unhelpful failure, same class as the extraction one above but a
+different root cause — worth its own entry so the two don't get conflated)
+**Description:** `_sample_judgment`'s `client.messages.parse()` call raised
+`pydantic.ValidationError` with `input_value=''` (an *empty* string, not partial JSON like the
+extraction bug above) on every live call. Cause: `claude-opus-5` has extended thinking on **by
+default**, and `max_tokens` is a hard cap on thinking + answer text *combined* — with
+`max_tokens=512` and no `thinking` config, the model spent the entire budget thinking about a
+simple 1-5 score and never wrote the JSON answer at all. This is specific to Opus-tier models
+with default-on thinking; `claude-haiku-4-5` (used in `claim_extractor.py`) doesn't think by
+default, which is why the extraction bug above manifested differently (partial JSON, not empty).
+**Workaround / status:** Fixed. `_sample_judgment` now passes `thinking={"type": "disabled"}` —
+accepted on `claude-opus-5` at the default effort level (`"high"`), and correct for this task
+regardless of the bug, since a one-sentence-rationale scoring task doesn't need extended
+reasoning. Verified live after the fix: real 2-sample and (in earlier testing before this fix)
+escalated-to-5 calls both returned clean scores. Regression test added to
+`tests/test_consistency_check.py` asserting `thinking` is disabled in the request. If a future
+judgment task genuinely needs the model to reason before scoring, `max_tokens` will need to be
+raised well above 512 to leave room for both, not just have thinking disabled.

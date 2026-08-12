@@ -156,3 +156,65 @@ need to call it. Giving it its own module keeps CLAUDE.md's stage-boundary-clean
 intact and gives future deterministic text-analysis utilities (e.g. non-GAAP/GAAP phrase
 detection, also planned per OVERALL_PROJECT.md's claim categories) an obvious home instead of
 overloading ingestion or extraction with logic that doesn't belong to either.
+
+---
+
+## 2026-08-12 — Consistency-check judgment task: concrete model, scale, and agreement threshold
+
+**Decision:** Implementing `src/eval/consistency_check.py`'s adaptive N=2→5 sampling (per the
+"[SEED] Adaptive sampling" and "[SEED] Median + range" entries above) required pinning down
+specifics those entries left open:
+
+- **Model:** `claude-opus-5` — the top tier in this repo's model catalog, not a middle tier.
+  DECISIONS.md's model-tiering entry says "reserve the strongest model for genuine judgment
+  calls" and names risk materiality and hedging-vs-confidence framing as exactly that; using
+  anything less than the actual strongest available model would contradict that entry's own
+  reasoning. Cost is kept sane not by downgrading the model but by only ever sampling it for the
+  small subset of claims in judgment-call categories, and only escalating past 2 samples when
+  the first two disagree — the adaptive-sampling decision already does the cost-limiting work.
+- **What's judged:** a 1-5 integer score, not a categorical label. `risk_factors` claims get a
+  "materiality" score (1 = minor/routine caveat, 5 = severe/could materially harm the business);
+  `hedging_tone` claims get a "framing" score (1 = strongly hedged/qualified, 5 = strongly
+  confident/unqualified). An ordinal integer scale is what makes "median + range" (the whole
+  point of the variance-reporting entry above) a meaningful, computable summary — a categorical
+  label would need a different, weaker variance representation (e.g. mode + set-of-values-seen).
+- **"Agree closely" threshold:** the first two samples are treated as agreeing, and sampling
+  stops at N=2, when their scores differ by ≤1 point on the 1-5 scale. Anything wider escalates
+  to 5 total samples. This is a specific, simple, testable operationalization of "closely" —
+  chosen over a vaguer rule so the escalation decision is itself deterministic and auditable.
+
+**Reasoning:** DECISIONS.md's existing entries established the *shape* of this mechanism
+(adaptive sampling, median + range, not a fake confidence interval) but not these specific
+numbers — leaving them unstated risked each future session re-deriving or silently drifting on
+them. Recording the exact model, scale, and threshold here means the next session extending
+`consistency_check.py` inherits the same numbers rather than re-litigating them.
+
+**Why `hedging_tone` gets an LLM judgment call despite hedging being deterministic elsewhere:**
+This is not a contradiction with the "deterministic-first" entry or with
+`src/analysis/hedging_detector.py` being phrase-lexicon-based. That module does cheap, mechanical
+phrase-presence tagging at scale across every claim/sentence. The `hedging_tone` *category* (see
+`skills/earnings-call-analysis/reference/claim-categories.md`) is deliberately rare — reserved
+for claims that are themselves fundamentally about a notable shift or pattern in framing, which
+phrase-matching alone can't judge (tone, emphasis, what a human analyst would read as
+backhanded confidence). That's exactly the kind of judgment call this project's tiering
+philosophy reserves for the strongest model, applied to a small claim subset, not a wholesale
+replacement of the deterministic detector.
+
+---
+
+## 2026-08-12 — Reconsidered and confirmed claude-opus-5 for consistency-check judgment calls
+
+**Decision:** Explicitly revisited the `claude-opus-5` choice above (not just left as a default)
+after being asked directly whether Haiku could be used for everything, including judgment calls.
+Kept `claude-opus-5`.
+
+**Reasoning:** Worked out real per-transcript cost for both: Haiku ≈1¢, Opus ≈4-5¢ for a
+transcript's worth of judgment-call sampling — a trivial absolute difference either way, so cost
+wasn't actually the deciding factor once real numbers were on the table (unlike a case where the
+cheap-vs-expensive gap is genuinely large). The deciding factor was the tiering story itself:
+using Haiku for judgment calls too would quietly abandon the "reserve the strongest model for
+genuine judgment calls" design this project is built around (see the model-tiering SEED entry
+and OVERALL_PROJECT.md's stated portfolio-differentiation goal) for a savings that doesn't
+materially matter. Recorded here — not because the decision changed, but because a "why didn't
+we just use the cheap model everywhere" question is exactly the kind of thing a future session
+might re-litigate from scratch without this context.
