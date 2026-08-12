@@ -5,7 +5,7 @@ in the file (marked done), don't delete history.
 
 ## Phase 1 — Core pipeline on earnings call transcripts (current target)
 
-- [ ] Deterministic ingestion: PDF → speaker-tagged transcript segments (Prepared Remarks vs
+- [x] Deterministic ingestion: PDF → speaker-tagged transcript segments (Prepared Remarks vs
       Q&A, speaker name/title per turn).
 - [ ] `skills/earnings-call-analysis/SKILL.md` — claim extraction skill, structured JSON output,
       mandatory source citation (speaker + turn) on every claim.

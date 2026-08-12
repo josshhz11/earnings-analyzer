@@ -1,7 +1,7 @@
 # STATE.md
 
 **Last updated:** 2026-08-12
-**Current phase:** Phase 0 — project scaffolding (complete) → Phase 1 implementation (next)
+**Current phase:** Phase 1 — core pipeline. Ingestion (deterministic) done; extraction is next.
 
 This file always reflects *current reality only*. Don't leave stale entries — if something
 described here stops being true, overwrite it, don't append. History belongs in DECISIONS.md,
@@ -9,39 +9,60 @@ not here.
 
 ## What actually works right now
 
-Nothing runs yet — scaffolding is complete but no pipeline logic exists. The full directory
-structure is in place:
+**`src/ingestion/` — deterministic PDF loading + speaker-turn segmentation. No LLM calls.**
 
-- `skills/earnings-call-analysis/SKILL.md` + `reference/hedging-lexicon.md` +
-  `reference/claim-categories.md` — stubs, built out in Prompt 3.
-- `src/{ingestion,extraction,eval,revision,report}/` — empty packages (`__init__.py` only).
-- `src/pipeline.py` — CLI stub, argument-parses `--input` then raises `NotImplementedError`.
-- `tests/`, `data/sample_transcripts/`, `data/cache/` — empty, `.gitkeep`'d.
-- `requirements.txt` (pymupdf, anthropic, pytest, python-dotenv), `.env.example`, `.gitignore`
-  all populated.
+- `pdf_loader.load_pdf_text(path)` — extracts text via pymupdf (`import pymupdf`, not the
+  deprecated `import fitz`), page by page. Raises `PDFTextExtractionError` for: missing file,
+  corrupt/non-PDF file, zero-page PDF, or near-empty text layer (avg <50 chars/page — the
+  scanned-transcript case). Returns a `LoadedDocument(source_path, page_count, text)`.
+- `segmentation.segment_transcript(text)` — parses raw text into `Turn(turn_number,
+  speaker_name, speaker_title, section, text)` objects. Handles two real-world cue styles (see
+  the module's docstring): standalone "Name, Title" header lines (Meta's format) and inline
+  "Name: text" / "Name, Title: text" cues, including dense transcripts that pack multiple cues
+  into one paragraph block with no blank-line separation between them (Assurant's format).
+  Locates the Prepared Remarks -> Q&A boundary via (1) an explicit heading like "Question &
+  Answer Section", (2) an Operator turn whose text contains Q&A-transition phrasing, or (3) a
+  weaker fallback (second Operator turn) — flags `low_confidence=True` with explanatory
+  `warnings` if none of those apply, rather than guessing.
+- Both modules are pure functions, fully unit tested — see `tests/test_pdf_loader.py` and
+  `tests/test_segmentation.py` (15 tests, all passing). Tested against two real, differently-
+  formatted transcripts in `data/sample_transcripts/` (provenance in that dir's `SOURCES.md`)
+  plus synthetic edge cases (no cues at all, no Q&A boundary, explicit heading, front-matter
+  skipping).
+- Known limitations from real-sample testing are logged in `memory/KNOWN_ISSUES.md` (regex
+  name/title split ambiguity on inconsistently-formatted source text, no OCR, English-only
+  Q&A-phrasing detection, etc.) — read that before touching `segmentation.py` again.
+
+Everything else (extraction, eval, revision, report, the skill itself) is still just scaffolding
+— empty packages / stub files, no logic.
 
 ## What's in progress
 
-Nothing — scaffolding (Prompt 0) is the only work done so far.
+Nothing actively — ingestion is complete for what Phase 1 needs from it.
 
 ## Immediate next step
 
-Run Prompt 1 (repo scaffolding follow-up, if any) or proceed directly to Prompt 2 — deterministic
-ingestion: PDF → speaker-tagged transcript segments (Prepared Remarks vs. Q&A, speaker name/title
-per turn), per ROADMAP.md Phase 1's first checklist item. No LLM calls in this stage.
+`skills/earnings-call-analysis/SKILL.md` — the claim-extraction skill (first LLM-calling stage).
+Per ROADMAP.md Phase 1: structured JSON output, mandatory source citation (speaker + turn number,
+which `segment_transcript`'s `Turn.turn_number` now provides directly) on every extracted claim.
+Reference files `hedging-lexicon.md` and `claim-categories.md` need real content too (currently
+stubs).
 
 ## Blocked on
 
-Nothing currently. Note: `.env` has not been created yet (only `.env.example` exists) — will be
-needed before any LLM-calling stage (extraction onward) can run, but ingestion doesn't need it.
+`.env` still doesn't exist (only `.env.example`) — needed before extraction can make real API
+calls. Not a blocker for ingestion work (no LLM calls there) but will be the first thing needed
+once extraction starts.
 
 ## Environment / setup status
 
-- [ ] Virtual environment created
+- [ ] Virtual environment created (dev has been running against a global Python 3.11.4 + pymupdf
+      install so far — worth formalizing before extraction work adds more dependencies)
 - [x] `requirements.txt` populated
 - [ ] `.env` configured with API key
-- [ ] Sample transcript(s) added to `data/sample_transcripts/`
-- [ ] First pipeline run attempted
+- [x] Sample transcript(s) added to `data/sample_transcripts/` (2 real PDFs, see `SOURCES.md`)
+- [x] First pipeline run attempted (ingestion stage only, via pytest — not yet via
+      `src/pipeline.py`, which is still a stub)
 
 ## Quick orientation for whoever (human or Claude Code) is picking this up
 
@@ -49,4 +70,6 @@ Read `memory/OVERALL_PROJECT.md` for what this is and isn't. Read `memory/ROADMA
 phased plan — short version: earnings call transcripts first (no tables, proves the full
 pipeline), 10-Q second (adds table extraction + numeric cross-check), 10-K and cross-document
 comparison later. Read `memory/DECISIONS.md` for the reasoning behind that sequencing and other
-architectural choices already made, so you don't re-debate settled questions.
+architectural choices already made, so you don't re-debate settled questions. Read
+`memory/KNOWN_ISSUES.md` before modifying `src/ingestion/segmentation.py` specifically — several
+real-world formatting edge cases are already documented there.
