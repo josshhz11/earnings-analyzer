@@ -99,3 +99,30 @@ nltk punkt, etc.) is more machinery than this deterministic-regex module is mean
 the downstream impact (classification of an artificially-short fragment) is minor. Revisit if
 hedging-detection accuracy on real transcripts turns out to be materially affected once it's
 wired into the extraction stage.
+
+---
+
+## Resolved
+
+## [RESOLVED] Claim extraction's default max_tokens (4096) truncated real responses mid-JSON
+**Discovered:** 2026-08-12, live-testing `src/extraction/claim_extractor.py` against 6 turns of
+the real Meta transcript
+**Severity:** medium (silently produced an unhelpful raw `pydantic_core.ValidationError` instead
+of a clear failure)
+**Description:** `client.messages.parse()`'s structured-output JSON for even a modest 6-turn
+slice of a real transcript exceeded the SDK's typical 4096-token default, cutting the response
+off mid-string. Worse: the Anthropic SDK raises `pydantic.ValidationError` **directly from
+inside** `client.messages.parse()` when this happens — it never returns a `response` object, so
+the code's original plan (check `response.stop_reason`, raise a clear `ClaimExtractionError`)
+never ran. The raw pydantic error surfaced to the caller instead, with no indication of the
+actual cause (truncation).
+**Workaround / status:** Fixed. `extract_claims()`'s default `max_tokens` raised from 4096 to
+8192 (documented in the function's docstring, kept well under the ~16K non-streaming timeout
+risk noted in the Anthropic SDK docs). The `client.messages.parse()` call is now wrapped in
+`try/except ValidationError`, re-raising as `ClaimExtractionError` with an actionable message
+("raise max_tokens or send fewer turns per call"). Regression test:
+`test_truncated_json_response_raises_claim_extraction_error_not_raw_pydantic_error` in
+`tests/test_claim_extractor.py`. If this recurs on larger transcripts sent as a single call,
+the real fix is chunking turns across multiple extraction calls, not raising `max_tokens`
+further — not yet built, since Phase 1 transcripts have been small enough that one call over the
+whole transcript stays well under 16K output tokens in testing so far.

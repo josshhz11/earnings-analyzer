@@ -2,7 +2,14 @@
 pymupdf>=1.24.0
 
 # Anthropic SDK — LLM calls for extraction/eval/revision/summary stages.
-anthropic>=0.34.0
+# >=0.121.0 because src/extraction/claim_extractor.py uses client.messages.parse()
+# + output_format (structured outputs), a newer SDK feature.
+anthropic>=0.121.0
+
+# Structured-output schemas passed to client.messages.parse() (claim_extractor.py).
+# Also a transitive dependency of anthropic itself, but declared directly since
+# our own code imports it.
+pydantic>=2.0.0
 
 # Testing
 pytest>=8.0.0
