@@ -1,0 +1,11 @@
+# PDF parsing — pymupdf chosen over pdfplumber; see DECISIONS.md for reasoning.
+pymupdf>=1.24.0
+
+# Anthropic SDK — LLM calls for extraction/eval/revision/summary stages.
+anthropic>=0.34.0
+
+# Testing
+pytest>=8.0.0
+
+# Environment variable loading (.env -> ANTHROPIC_API_KEY etc.)
+python-dotenv>=1.0.0

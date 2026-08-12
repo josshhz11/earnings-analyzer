@@ -1,0 +1,32 @@
+# Environment / secrets
+.env
+
+# Dev-time cache (extraction/LLM results) — regenerated locally, not versioned
+data/cache/*
+!data/cache/.gitkeep
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Test / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
