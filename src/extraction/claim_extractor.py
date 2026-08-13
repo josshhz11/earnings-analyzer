@@ -52,7 +52,9 @@ CATEGORY_VALUES: tuple[str, ...] = (
     "hedging_tone",
 )
 
-_Category = Literal[
+# Public (not underscore-prefixed) — src/eval and src/revision both reuse this
+# type when building their own structured-output schemas over claim categories.
+Category = Literal[
     "financial_performance",
     "guidance",
     "risk_factors",
@@ -66,7 +68,7 @@ class _ClaimSchema(BaseModel):
     """Structured-output schema for one claim — see `output_config.format`."""
 
     claim_text: str
-    category: _Category
+    category: Category
     source_turn_number: int
     source_quote: str
     confidence_flag: bool
