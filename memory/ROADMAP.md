@@ -12,7 +12,7 @@ in the file (marked done), don't delete history.
 - [x] Eval harness v1: faithfulness check (programmatic, quote-matching), coverage check.
 - [x] Consistency check with adaptive N=2→5 sampling on judgment-call categories, median + range
       reporting.
-- [ ] Targeted revision pass (only flagged claims get corrected, not full regeneration).
+- [x] Targeted revision pass (only flagged claims get corrected, not full regeneration).
 - [ ] Report generation — categorized claims with citations, eval appendix, Markdown export.
 - [ ] `src/pipeline.py` CLI tool for personal inspection of every stage's output.
 - [ ] Run end-to-end on at least 3 real sample transcripts, sanity-check output by hand.
